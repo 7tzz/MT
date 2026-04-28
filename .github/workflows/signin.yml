@@ -1,0 +1,48 @@
+name: MT论坛每日签到
+
+on:
+  schedule:
+    - cron: '0 1 * * *'   # UTC 01:00 = 北京时间 09:00
+  workflow_dispatch:        # 允许手动触发, 便于首次验证 Cookie
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  signin:
+    runs-on: ubuntu-latest
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+
+    - name: 设置Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: 安装依赖
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: 执行签到
+      env:
+        MT_COOKIES: ${{ secrets.MT_COOKIES }}
+        ENABLE_PROXY: ${{ secrets.ENABLE_PROXY }}
+        PROXY_SOURCES: ${{ secrets.PROXY_SOURCES }}
+        WECHAT_WEBHOOK: ${{ secrets.WECHAT_WEBHOOK }}
+        WECHAT_CORPID: ${{ secrets.WECHAT_CORPID }}
+        WECHAT_CORPSECRET: ${{ secrets.WECHAT_CORPSECRET }}
+        WECHAT_AGENTID: ${{ secrets.WECHAT_AGENTID }}
+        WECHAT_TOUSER: ${{ secrets.WECHAT_TOUSER }}
+      run: python main.py
+
+    - name: 上传日志(失败后调试)
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: signin-logs-failed
+        path: |
+          *.log
+          *.txt
+        if-no-files-found: ignore
