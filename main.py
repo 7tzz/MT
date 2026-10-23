@@ -103,6 +103,7 @@ class Config:
     wechat_agentid: str = ""
     wechat_touser: str = "@all"
     wechat_webhook: str = ""
+    pushplus_token: str = ""
     mt_accounts: str = ""
 
     @classmethod
@@ -124,6 +125,7 @@ class Config:
             wechat_agentid=os.environ.get("WECHAT_AGENTID", "") or "",
             wechat_touser=os.environ.get("WECHAT_TOUSER", "@all") or "@all",
             wechat_webhook=os.environ.get("WECHAT_WEBHOOK", "") or "",
+            pushplus_token=os.environ.get("PUSHPLUS_TOKEN", "") or "",
             mt_accounts=os.environ.get("MT_ACCOUNTS", "") or "",
         )
 
@@ -221,8 +223,36 @@ def wechat_push(cfg: Config, content: str) -> bool:
         return False
 
 
+def pushplus_push(token: str, content: str) -> bool:
+    """Push+ 微信推送: 用 token POST 到 pushplus.plus, 结果发到微信服务号。"""
+    if not token:
+        return False
+    try:
+        resp = requests.post(
+            "https://www.pushplus.plus/send",
+            json={
+                "token": token,
+                "title": "MT论坛签到",
+                "content": content.replace("\n", "<br>"),
+                "template": "html",
+            },
+            timeout=10,
+        )
+        data = resp.json() if resp.headers.get("Content-Type", "").startswith("application/json") else {}
+        if resp.status_code == 200 and data.get("code") == 200:
+            log.info("Push+ 推送成功")
+            return True
+        log.warning(f"Push+ 推送失败: HTTP {resp.status_code} {resp.text[:200]}")
+        return False
+    except Exception as e:
+        log.warning(f"Push+ 推送异常: {e}")
+        return False
+
+
 def push_result(cfg: Config, content: str) -> bool:
-    """统一推送入口: 优先群机器人 Webhook, 否则回退自建应用。"""
+    """统一推送入口: 优先 Push+, 其次企业微信群机器人 Webhook, 否则回退自建应用。"""
+    if cfg.pushplus_token:
+        return pushplus_push(cfg.pushplus_token, content)
     if cfg.wechat_webhook:
         return wechat_webhook_push(cfg.wechat_webhook, content)
     return wechat_push(cfg, content)
