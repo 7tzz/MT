@@ -35,6 +35,7 @@ jobs:
         WECHAT_CORPSECRET: ${{ secrets.WECHAT_CORPSECRET }}
         WECHAT_AGENTID: ${{ secrets.WECHAT_AGENTID }}
         WECHAT_TOUSER: ${{ secrets.WECHAT_TOUSER }}
+        PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
       run: python main.py
 
     - name: 上传日志(失败后调试)
