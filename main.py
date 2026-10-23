@@ -148,15 +148,6 @@ HEADERS = {
     "Connection": "keep-alive",
 }
 
-# 关掉 verify=False 的告警(部分代理链路证书不全)
-try:
-    from urllib3.exceptions import InsecureRequestWarning
-    import urllib3
-
-    urllib3.disable_warnings(InsecureRequestWarning)
-except Exception:
-    pass
-
 
 # ---------------------------------------------------------------------------
 # 企业微信推送（两种通道，按配置自动选择）
@@ -334,7 +325,7 @@ def login_session(user: str, pwd: str, proxy: Optional[str], cfg: Config) -> tup
         r = s.get(
             f"{cfg.base}/member.php?mod=logging&action=login&infloat=yes&handlekey=login"
             f"&inajax=1&ajaxtarget=fwin_content_login",
-            timeout=cfg.req_timeout, verify=False,
+            timeout=cfg.req_timeout, verify=True,
         )
     except Exception as e:
         return None, f"登录页请求异常: {e}"
@@ -355,7 +346,7 @@ def login_session(user: str, pwd: str, proxy: Optional[str], cfg: Config) -> tup
         rr = s.post(
             f"{cfg.base}/member.php?mod=logging&action=login&loginsubmit=yes"
             f"&handlekey=login&loginhash={loginhash}&inajax=1",
-            data=data, timeout=cfg.req_timeout, verify=False,
+            data=data, timeout=cfg.req_timeout, verify=True,
         )
     except Exception as e:
         return None, f"登录POST异常: {e}"
@@ -391,7 +382,7 @@ def validate_proxy(proxy: str, cfg: Config) -> tuple[str, bool, int]:
     t0 = time.time()
     try:
         r = requests.get(sign_page_url(cfg), headers=HEADERS, proxies=proxies,
-                         timeout=cfg.req_timeout, verify=False)
+                         timeout=cfg.req_timeout, verify=True)
         good = r.ok and ("k_misign" in r.text) and not is_blocked(r.text)
         return proxy, good, int((time.time() - t0) * 1000)
     except Exception as e:
@@ -455,7 +446,7 @@ def sign_once(s: requests.Session, cfg: Config) -> tuple[str, str]:
     fh: Optional[str] = None
     for _ in range(cfg.max_retry):
         try:
-            r = s.get(sign_page_url(cfg), timeout=cfg.req_timeout, verify=False)
+            r = s.get(sign_page_url(cfg), timeout=cfg.req_timeout, verify=True)
         except Exception as e:
             log.warning(f"  签到页请求异常: {e}")
             time.sleep(1.5 + random.random())
@@ -493,12 +484,12 @@ def sign_once(s: requests.Session, cfg: Config) -> tuple[str, str]:
     last = ""
     for _ in range(cfg.max_retry):
         try:
-            rr = s.get(url, timeout=cfg.req_timeout, verify=False,
+            rr = s.get(url, timeout=cfg.req_timeout, verify=True,
                        headers={"X-Requested-With": "XMLHttpRequest"})
             last = rr.text[:200]
             if rr.status_code == 200 and ("已签" in rr.text or "成功" in rr.text or rr.text.strip() == ""):
                 time.sleep(1.2 + random.random())
-                chk = s.get(sign_page_url(cfg), timeout=cfg.req_timeout, verify=False)
+                chk = s.get(sign_page_url(cfg), timeout=cfg.req_timeout, verify=True)
                 if "今日已签" in chk.text or BeautifulSoup(chk.text, "html.parser").find(
                         "span", class_="btnvisted"):
                     return ("done", f"签到成功 (formhash={fh})")
